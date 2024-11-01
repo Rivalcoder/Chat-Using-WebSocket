@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Application</title>
+  <style>
+    #chat {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+    #messages {
+      height: 300px;
+      overflow-y: scroll;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+      padding: 10px;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div id="chat">
+    <div id="messages"></div>
+    <input id="messageInput" placeholder="Type a message..." />
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+  <script>
+    const PRIVATE_KEY = 'your-private-key'; // Replace with your actual private key
+    const ws = new WebSocket(`wss://privateboot.vercel.app?key=${PRIVATE_KEY}`);
+
+    ws.onmessage = (event) => {
+      const messages = document.getElementById('messages');
+      const message = document.createElement('div');
+      message.textContent = event.data;
+      messages.appendChild(message);
+      messages.scrollTop = messages.scrollHeight;
+    };
+
+    function sendMessage() {
+      const input = document.getElementById('messageInput');
+      ws.send(input.value);
+      input.value = '';
+    }
+  </script>
+</body>
+</html>
