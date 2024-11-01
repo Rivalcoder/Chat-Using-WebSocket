@@ -1,31 +1,39 @@
-const express = require('express');
-const http = require('http');
 const WebSocket = require('ws');
 
-const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
-
-const PRIVATE_KEY = 'your-private-key'; // Replace with your actual private key
+const wss = new WebSocket.Server({ port: 8080 });
+const clients = new Map(); // To store clients with their keys
 
 wss.on('connection', (ws, req) => {
-  const urlParams = new URLSearchParams(req.url.split('?')[1]);
-  const key = urlParams.get('key');
-
-  if (key !== PRIVATE_KEY) {
-    ws.close(); // Close the connection if the key is invalid
-    return;
-  }
+  const key = req.url.split('key=')[1];
+  console.log(`Client connected with key: ${key}`);
+  clients.set(key, ws); // Store the client by key
 
   ws.on('message', (message) => {
-    wss.clients.forEach((client) => {
-      if (client !== ws && client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
+    console.log(`Received message from ${key}: ${message}`);
+    
+    // Optional: Validate message format
+    try {
+      const parsedMessage = JSON.parse(message);
+      broadcastMessage(parsedMessage, key);
+    } catch (error) {
+      console.error('Invalid message format:', error);
+      ws.send(JSON.stringify({ error: 'Invalid message format' }));
+    }
+  });
+
+  ws.on('close', () => {
+    console.log(`Client disconnected with key: ${key}`);
+    clients.delete(key); // Remove client from the map
   });
 });
 
-server.listen(8080, () => {
-  console.log('Server is listening on port 8080');
-});
+function broadcastMessage(message, senderKey) {
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      // Send message to all clients
+      client.send(JSON.stringify({ sender: message.sender, content: message.content }));
+    }
+  });
+}
+
+console.log('WebSocket server is running on ws://localhost:8080');

@@ -10,6 +10,7 @@
       margin: 0 auto;
       padding: 10px;
       border: 1px solid #ccc;
+      border-radius: 8px;
     }
     #messages {
       height: 300px;
@@ -17,36 +18,127 @@
       border: 1px solid #ccc;
       margin-bottom: 10px;
       padding: 10px;
+      background: #f9f9f9;
+      display: flex;
+      flex-direction: column;
+      gap: 5px; /* Space between messages */
     }
     input, button {
       padding: 10px;
       margin: 5px;
+      width: calc(100% - 22px);
+      box-sizing: border-box;
+    }
+    button {
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .user-message {
+      background-color: #007bff; /* Sender's message background */
+      color: white;
+      padding: 5px 10px;
+      border-radius: 10px;
+      max-width: 80%; /* Limit message width */
+      align-self: flex-end; /* Align to the right */
+    }
+    .other-message {
+      background-color: #f1f1f1; /* Receiver's message background */
+      color: black;
+      padding: 5px 10px;
+      border-radius: 10px;
+      max-width: 80%; /* Limit message width */
+      align-self: flex-start; /* Align to the left */
     }
   </style>
 </head>
 <body>
   <div id="chat">
+    <input id="keyInput" placeholder="Enter or generate a key" />
+    <button onclick="generateKey()">Generate Key</button>
+    <button onclick="joinChat()">Join Chat</button>
     <div id="messages"></div>
     <input id="messageInput" placeholder="Type a message..." />
     <button onclick="sendMessage()">Send</button>
   </div>
 
   <script>
-    const PRIVATE_KEY = 'your-private-key'; // Replace with your actual private key
-    const ws = new WebSocket(`wss://privateboot.vercel.app?key=${PRIVATE_KEY}`);
+    let ws;
+    let currentKey = '';
+    let userName = prompt("Enter your name:"); // Prompt for user's name
+    const reconnectInterval = 2000;
 
-    ws.onmessage = (event) => {
-      const messages = document.getElementById('messages');
-      const message = document.createElement('div');
-      message.textContent = event.data;
-      messages.appendChild(message);
-      messages.scrollTop = messages.scrollHeight;
-    };
+    function generateKey() {
+      currentKey = crypto.randomUUID();
+      document.getElementById('keyInput').value = currentKey;
+    }
+
+    function joinChat() {
+      currentKey = document.getElementById('keyInput').value;
+      if (!currentKey) {
+        alert('Please enter a key to join the chat.');
+        return;
+      }
+
+      ws = new WebSocket(`ws://localhost:8080/?key=${currentKey}`);
+
+      ws.onopen = () => {
+        console.log('Connected to WebSocket server');
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        addMessage(data);
+      };
+
+      ws.onclose = () => {
+        console.log('Disconnected. Attempting to reconnect...');
+        setTimeout(joinChat, reconnectInterval);
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        alert('WebSocket error. Please check your connection.');
+      };
+    }
 
     function sendMessage() {
       const input = document.getElementById('messageInput');
-      ws.send(input.value);
-      input.value = '';
+      if (input.value.trim() === '') {
+        alert('Message cannot be empty.');
+        return;
+      }
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        const message = { sender: userName, content: input.value };
+        ws.send(JSON.stringify(message));
+        input.value = '';
+        input.focus();
+      } else {
+        console.log('WebSocket is not open or is undefined');
+        alert('Please join the chat first.');
+      }
+    }
+
+    function addMessage(data) {
+      const messages = document.getElementById('messages');
+      const messageDiv = document.createElement('div');
+
+      // Set styles based on whether the message is from the sender or another user
+      if (data.sender === userName) {
+        messageDiv.className = 'user-message'; // Right
+      } else {
+        messageDiv.className = 'other-message'; // Left
+      }
+
+      messageDiv.textContent = `${data.sender}: ${data.content}`;
+      messages.appendChild(messageDiv);
+      messages.scrollTop = messages.scrollHeight; // Auto-scroll to bottom
     }
   </script>
 </body>
