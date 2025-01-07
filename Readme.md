@@ -32,4 +32,11 @@ This is a real-time chat application built using **HTML**, **CSS**, **JavaScript
 
 ---
 
+### 🚀 ScreenShot
+
+- ![Chat Application Screenshot](./Websocket.png)
+
+---
 - Made with ❤️ by [Rivalcoder]
+
+
